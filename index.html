@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Solar System 3D - Interactive Visualization</title>
+    <link rel="stylesheet" href="styles.css" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700&family=Exo+2:wght@300;400;500&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body>
+    <div id="canvas-container"></div>
+
+    <!-- Header -->
+    <header class="header">
+      <h1 class="title">🌌 Solar System Explorer</h1>
+      <p class="subtitle">Interactive 3D Visualization</p>
+    </header>
+
+    <!-- Controls Panel -->
+    <div class="controls-panel">
+      <div class="control-group">
+        <label>Orbit Speed</label>
+        <input
+          type="range"
+          id="orbitSpeed"
+          min="0"
+          max="2"
+          step="0.1"
+          value="1"
+        />
+        <span id="speedValue">1x</span>
+      </div>
+      <div class="control-group">
+        <label>Rotation Speed</label>
+        <input
+          type="range"
+          id="rotationSpeed"
+          min="0"
+          max="2"
+          step="0.1"
+          value="1"
+        />
+        <span id="rotationValue">1x</span>
+      </div>
+      <div class="control-group">
+        <button id="toggleOrbits" class="btn">Toggle Orbits</button>
+        <button id="toggleLabels" class="btn">Toggle Labels</button>
+      </div>
+      <div class="control-group">
+        <button id="resetCamera" class="btn btn-primary">Reset View</button>
+      </div>
+    </div>
+
+    <!-- Planet Info Panel -->
+    <div class="info-panel" id="infoPanel">
+      <button class="close-btn" id="closePanel">&times;</button>
+      <div class="planet-icon" id="planetIcon"></div>
+      <h2 class="planet-name" id="planetName">Select a Planet</h2>
+      <div class="planet-type" id="planetType"></div>
+
+      <div class="info-section">
+        <h3>📊 Key Facts</h3>
+        <div class="info-grid">
+          <div class="info-item">
+            <span class="info-label">Diameter</span>
+            <span class="info-value" id="planetDiameter">-</span>
+          </div>
+          <div class="info-item">
+            <span class="info-label">Distance from Sun</span>
+            <span class="info-value" id="planetDistance">-</span>
+          </div>
+          <div class="info-item">
+            <span class="info-label">Orbital Period</span>
+            <span class="info-value" id="planetOrbitalPeriod">-</span>
+          </div>
+          <div class="info-item">
+            <span class="info-label">Day Length</span>
+            <span class="info-value" id="planetDayLength">-</span>
+          </div>
+          <div class="info-item">
+            <span class="info-label">Moons</span>
+            <span class="info-value" id="planetMoons">-</span>
+          </div>
+          <div class="info-item">
+            <span class="info-label">Temperature</span>
+            <span class="info-value" id="planetTemperature">-</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="info-section">
+        <h3>🔬 Composition</h3>
+        <p id="planetComposition">-</p>
+      </div>
+
+      <div class="info-section">
+        <h3>📖 Description</h3>
+        <p id="planetDescription">
+          Click on any planet to explore its details!
+        </p>
+      </div>
+
+      <div class="info-section">
+        <h3>🔍 Fun Facts</h3>
+        <ul id="planetFacts"></ul>
+      </div>
+    </div>
+
+    <!-- Planet Navigation -->
+    <nav class="planet-nav">
+      <div class="nav-item" data-planet="sun">
+        <div class="nav-icon sun"></div>
+        <span>Sun</span>
+      </div>
+      <div class="nav-item" data-planet="mercury">
+        <div class="nav-icon mercury"></div>
+        <span>Mercury</span>
+      </div>
+      <div class="nav-item" data-planet="venus">
+        <div class="nav-icon venus"></div>
+        <span>Venus</span>
+      </div>
+      <div class="nav-item" data-planet="earth">
+        <div class="nav-icon earth"></div>
+        <span>Earth</span>
+      </div>
+      <div class="nav-item" data-planet="mars">
+        <div class="nav-icon mars"></div>
+        <span>Mars</span>
+      </div>
+      <div class="nav-item" data-planet="jupiter">
+        <div class="nav-icon jupiter"></div>
+        <span>Jupiter</span>
+      </div>
+      <div class="nav-item" data-planet="saturn">
+        <div class="nav-icon saturn"></div>
+        <span>Saturn</span>
+      </div>
+      <div class="nav-item" data-planet="uranus">
+        <div class="nav-icon uranus"></div>
+        <span>Uranus</span>
+      </div>
+      <div class="nav-item" data-planet="neptune">
+        <div class="nav-icon neptune"></div>
+        <span>Neptune</span>
+      </div>
+    </nav>
+
+    <!-- Loading Screen -->
+    <div class="loading-screen" id="loadingScreen">
+      <div class="loader">
+        <div class="orbit-loader">
+          <div class="planet-loader"></div>
+        </div>
+        <p>Loading Solar System...</p>
+      </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://unpkg.com/three@0.128.0/build/three.min.js"></script>
+    <script src="https://unpkg.com/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script src="planetData.js"></script>
+    <script src="main.js"></script>
+  </body>
+</html>
