@@ -628,12 +628,12 @@ function selectPlanet(planetKey) {
     }
   });
 
-  // Animate camera to planet
-  animateCameraToPlanet(planetKey);
+  // Initial camera position (will be updated in animate loop)
+  updateCameraForPlanet(planetKey, true);
 }
 
-// Animate camera to planet
-function animateCameraToPlanet(planetKey) {
+// Update camera to follow planet and avoid sun occlusion
+function updateCameraForPlanet(planetKey, isInitial = false) {
   const planet = planets[planetKey];
   if (!planet) return;
 
@@ -643,33 +643,62 @@ function animateCameraToPlanet(planetKey) {
   const data = planetData[planetKey];
   const distance = data.size * 8;
 
-  const cameraTarget = new THREE.Vector3(
-    targetPosition.x + distance,
-    targetPosition.y + distance * 0.5,
-    targetPosition.z + distance,
-  );
-
-  // Simple animation
-  const startPosition = camera.position.clone();
-  const startTarget = controls.target.clone();
-  let progress = 0;
-
-  function animateCamera() {
-    progress += 0.02;
-    if (progress >= 1) {
-      camera.position.copy(cameraTarget);
-      controls.target.copy(targetPosition);
-      return;
-    }
-
-    const eased = easeOutCubic(progress);
-    camera.position.lerpVectors(startPosition, cameraTarget, eased);
-    controls.target.lerpVectors(startTarget, targetPosition, eased);
-
-    requestAnimationFrame(animateCamera);
+  // Calculate camera position that follows the planet in its orbit
+  // Position camera "behind" the planet in its orbital direction
+  let cameraOffset = new THREE.Vector3();
+  
+  if (planetKey === 'sun') {
+    // For sun, just orbit around it
+    cameraOffset.set(distance, distance * 0.5, distance);
+  } else {
+    // Get the planet's orbital angle
+    const angle = planet.angle || 0;
+    
+    // Calculate tangent to orbit (perpendicular to radius)
+    // This gives us the direction of orbital motion
+    const tangentAngle = angle + Math.PI / 2;
+    
+    // Position camera behind and above the planet in its orbit
+    // "Behind" means opposite to its direction of motion
+    const behindAngle = angle + Math.PI; // Opposite side of orbit
+    
+    // Mix between behind and to the side for better view
+    const viewAngle = angle + Math.PI * 0.75; // 135 degrees behind
+    
+    cameraOffset.x = Math.cos(viewAngle) * distance;
+    cameraOffset.z = Math.sin(viewAngle) * distance;
+    cameraOffset.y = distance * 0.4; // Elevated view
   }
 
-  animateCamera();
+  const cameraTarget = new THREE.Vector3().addVectors(targetPosition, cameraOffset);
+
+  if (isInitial) {
+    // Smooth initial transition
+    const startPosition = camera.position.clone();
+    const startTarget = controls.target.clone();
+    let progress = 0;
+
+    function animateCamera() {
+      progress += 0.02;
+      if (progress >= 1) {
+        camera.position.copy(cameraTarget);
+        controls.target.copy(targetPosition);
+        return;
+      }
+
+      const eased = easeOutCubic(progress);
+      camera.position.lerpVectors(startPosition, cameraTarget, eased);
+      controls.target.lerpVectors(startTarget, targetPosition, eased);
+
+      requestAnimationFrame(animateCamera);
+    }
+
+    animateCamera();
+  } else {
+    // Smooth continuous following
+    camera.position.lerp(cameraTarget, 0.05);
+    controls.target.lerp(targetPosition, 0.1);
+  }
 }
 
 // Create Galilean Moons for Jupiter
@@ -950,6 +979,11 @@ function animate() {
         });
     }
   });
+
+  // Update camera to follow selected planet
+  if (selectedPlanet && selectedPlanet !== 'sun') {
+    updateCameraForPlanet(selectedPlanet, false);
+  }
 
   // Update labels
   updateLabels();
