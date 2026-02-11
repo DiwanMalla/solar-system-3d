@@ -304,6 +304,11 @@ function createPlanet(key) {
     createMoon(planet);
   }
 
+  // Add Galilean moons for Jupiter
+  if (key === "jupiter") {
+    createGalileanMoons(planet);
+  }
+
   // Create label
   createLabel(key, planet);
 }
@@ -408,6 +413,53 @@ function createMoon(earthMesh) {
 
   planets.earth.moon = moon;
   planets.earth.moonOrbit = moonOrbit;
+}
+
+// Create Asteroid Belt
+function createAsteroidBelt() {
+  const asteroidcount = 5000;
+  const geometry = new THREE.BufferGeometry();
+  const positions = [];
+  const colors = [];
+  
+  for (let i = 0; i < asteroidcount; i++) {
+    // Random radius between Mars (70) and Jupiter (100)
+    const r = 80 + Math.random() * 15;
+    const theta = Math.random() * Math.PI * 2;
+    // Small vertical spread
+    const y = (Math.random() - 0.5) * 4;
+
+    const x = r * Math.cos(theta);
+    const z = r * Math.sin(theta);
+
+    positions.push(x, y, z);
+
+    // Variation in gray color
+    const gray = 0.5 + Math.random() * 0.4;
+    colors.push(gray, gray, gray);
+  }
+
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+
+  const material = new THREE.PointsMaterial({
+    size: 0.5,
+    vertexColors: true,
+    transparent: true,
+    opacity: 0.8
+  });
+
+  const asteroids = new THREE.Points(geometry, material);
+  asteroids.name = "asteroidBelt";
+  scene.add(asteroids);
+  
+  // Store reference if needed, though simple rotation in animate is fine. 
+  // But let's add it to planets so it can be accessed if we want to rotate it specifically.
+  // We'll define a custom animate property for it or just rotate the mesh group.
+  planets['asteroids'] = { 
+      mesh: asteroids, 
+      data: { rotationSpeed: 0.001, orbitSpeed: 0, orbitRadius: 0 } // Dummy data to prevent crash in animate loop
+  };
 }
 
 // Create orbital paths
@@ -620,6 +672,107 @@ function animateCameraToPlanet(planetKey) {
   animateCamera();
 }
 
+// Create Galilean Moons for Jupiter
+function createGalileanMoons(jupiterMesh) {
+  const moons = [
+    { name: "Io", size: 0.6, distance: 8, color: 0xffff00, speed: 0.04 },
+    { name: "Europa", size: 0.5, distance: 10, color: 0xffffff, speed: 0.03 },
+    { name: "Ganymede", size: 0.8, distance: 13, color: 0xcccccc, speed: 0.02 },
+    { name: "Callisto", size: 0.7, distance: 16, color: 0x999999, speed: 0.01 }
+  ];
+
+  planets.jupiter.moons = [];
+
+  moons.forEach(moonData => {
+    const geometry = new THREE.SphereGeometry(moonData.size, 16, 16);
+    const material = new THREE.MeshPhongMaterial({ color: moonData.color });
+    const moon = new THREE.Mesh(geometry, material);
+    
+    // Create orbit group for rotation
+    const orbitGroup = new THREE.Group();
+    moon.position.x = moonData.distance;
+    orbitGroup.add(moon);
+    
+    // Random starting position
+    orbitGroup.rotation.y = Math.random() * Math.PI * 2;
+    
+    jupiterMesh.add(orbitGroup);
+    
+    planets.jupiter.moons.push({
+      mesh: moon,
+      group: orbitGroup,
+      data: moonData
+    });
+  });
+}
+
+// Tour Mode
+let isTouring = false;
+let tourIndex = 0;
+let tourInterval;
+
+function startTour() {
+  if (isTouring) return;
+  isTouring = true;
+  tourIndex = 0;
+  
+  const planetKeys = ["sun", "mercury", "venus", "earth", "mars", "jupiter", "saturn", "uranus", "neptune"];
+  
+  function nextPlanet() {
+    if (!isTouring) return;
+    
+    if (tourIndex >= planetKeys.length) {
+      isTouring = false;
+      document.getElementById("startTour").textContent = "🚀 Start Tour";
+      return;
+    }
+    
+    selectPlanet(planetKeys[tourIndex]);
+    tourIndex++;
+    
+    // Move to next planet after 8 seconds
+    tourInterval = setTimeout(nextPlanet, 8000);
+  }
+  
+  document.getElementById("startTour").textContent = "⏹ Stop Tour";
+  nextPlanet();
+}
+
+function stopTour() {
+  isTouring = false;
+  clearTimeout(tourInterval);
+  document.getElementById("startTour").textContent = "🚀 Start Tour";
+}
+
+// Real-time Scale Logic
+let isRealTime = false;
+const orbitalPeriods = {
+    mercury: 88,
+    venus: 225,
+    earth: 365.25,
+    mars: 687,
+    jupiter: 4333,
+    saturn: 10759,
+    uranus: 30687,
+    neptune: 60190
+};
+
+function toggleRealTime(enabled) {
+    isRealTime = enabled;
+    if (enabled) {
+        // Adjust speeds to be relative to Earth years (simplified)
+        // This is still sped up, but relative proportions are accurate
+        orbitSpeedMultiplier = 0.5; 
+        document.getElementById("speedValue").textContent = "Real-ish";
+        document.getElementById("orbitSpeed").disabled = true;
+    } else {
+        orbitSpeedMultiplier = 1;
+        document.getElementById("speedValue").textContent = "1x";
+        document.getElementById("orbitSpeed").disabled = false;
+    }
+}
+
+
 // Easing function
 function easeOutCubic(t) {
   return 1 - Math.pow(1 - t, 3);
@@ -656,6 +809,7 @@ function setupEventListeners() {
 
   // Reset camera
   document.getElementById("resetCamera").addEventListener("click", () => {
+    if (isTouring) stopTour();
     camera.position.set(100, 80, 150);
     controls.target.set(0, 0, 0);
     document.getElementById("infoPanel").classList.remove("active");
@@ -665,8 +819,47 @@ function setupEventListeners() {
     });
   });
 
+  // Tour Button
+  document.getElementById("startTour").addEventListener("click", () => {
+      if (isTouring) {
+          stopTour();
+      } else {
+          startTour();
+      }
+  });
+
+  // Real-time Toggle
+  document.getElementById("realTimeToggle").addEventListener("change", (e) => {
+      toggleRealTime(e.target.checked);
+  });
+  
+  // Date Picker
+  document.getElementById("datePicker").addEventListener("change", (e) => {
+      const date = new Date(e.target.value);
+      if (!isNaN(date.getTime())) {
+          // Calculate planet positions based on date (Simple approximation)
+          // Epoch: J2000 or similar could be used.
+          // For this demo, we'll just set random angles seeded by date
+          // or leave it as a "set start time" for the simulation
+          const dayOfYear = Math.floor((date - new Date(date.getFullYear(), 0, 0)) / 1000 / 60 / 60 / 24);
+          console.log("Setting simulation to day: " + dayOfYear);
+          
+          Object.keys(planets).forEach(key => {
+              if (key === 'sun' || key === 'asteroids') return;
+              
+              // Very rough approximation: Angle = (Days / Period) * 2PI
+              // Real calculation requires Kepler's equations and orbital elements.
+              const period = orbitalPeriods[key] || 365;
+              planets[key].angle = (dayOfYear / period) * Math.PI * 2;
+          });
+      }
+  });
+
   // Close panel
   document.getElementById("closePanel").addEventListener("click", () => {
+    // Stop tour if user manually closes panel
+    if (isTouring) stopTour();
+    
     document.getElementById("infoPanel").classList.remove("active");
     selectedPlanet = null;
     document.querySelectorAll(".nav-item").forEach((item) => {
@@ -677,6 +870,8 @@ function setupEventListeners() {
   // Planet navigation
   document.querySelectorAll(".nav-item").forEach((item) => {
     item.addEventListener("click", () => {
+      if (isTouring) stopTour();
+      
       const planetKey = item.dataset.planet;
       selectPlanet(planetKey);
     });
@@ -706,21 +901,53 @@ function animate() {
   // Animate planets
   Object.keys(planets).forEach((key) => {
     if (key === "sun") return;
+    
+    // Special handling for asteroids
+    if (key === 'asteroids') {
+        const asteroids = planets[key];
+        asteroids.mesh.rotation.y += 0.0005 * orbitSpeedMultiplier;
+        return;
+    }
 
     const planet = planets[key];
     const data = planet.data;
 
     // Orbital motion
-    planet.angle += data.orbitSpeed * orbitSpeedMultiplier * delta * 10;
+    if (isRealTime) {
+         // Use realistic relative speeds based on orbital period
+         // Speed = (2PI / Period) * Multiplier
+         const period = orbitalPeriods[key] || 365;
+         // Normalize to Earth seconds? No, just relative
+         const speed = (365.25 / period) * 0.01; // Base speed relative to Earth
+         planet.angle += speed * orbitSpeedMultiplier * 0.1; // Slower for realism
+    } else {
+        planet.angle += data.orbitSpeed * orbitSpeedMultiplier * delta * 10;
+    }
+    
     planet.mesh.position.x = Math.cos(planet.angle) * data.orbitRadius;
     planet.mesh.position.z = Math.sin(planet.angle) * data.orbitRadius;
 
     // Planet rotation
     planet.mesh.rotation.y += data.rotationSpeed * rotationSpeedMultiplier;
+    
+    // Cloud rotation for Earth
+    if (planet.clouds) {
+        planet.clouds.rotation.y += 0.005 * rotationSpeedMultiplier;
+    }
 
     // Moon orbit (for Earth)
     if (planet.moonOrbit) {
       planet.moonOrbit.rotation.y += 0.02 * orbitSpeedMultiplier;
+    }
+    
+    // Galilean Moons (for Jupiter)
+    if (key === 'jupiter' && planet.moons) {
+        planet.moons.forEach(moonObj => {
+            // Simply rotate the group around Jupiter
+            moonObj.group.rotation.y += moonObj.data.speed * orbitSpeedMultiplier;
+            // Optionally rotate moon itself
+            moonObj.mesh.rotation.y += 0.01;
+        });
     }
   });
 
